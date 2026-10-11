@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # diperlukan untuk membuat Release berisi APK
+  contents: write
 
 jobs:
   build:
@@ -14,7 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Ekstrak semua file .zip di root repo (kalau ada) sebelum build
       - name: Ekstrak zip
         run: |
           shopt -s nullglob
@@ -22,10 +21,8 @@ jobs:
             echo "Mengekstrak: $z"
             unzip -oq "$z"
           done
-          echo "Isi repo setelah ekstrak:"
           ls -la
 
-      # Cari otomatis folder proyek Gradle (root repo atau subfolder, mis. Droneapk-main/)
       - name: Cari folder proyek
         run: |
           SETTINGS=$(find . -maxdepth 3 \( -name settings.gradle.kts -o -name settings.gradle \) -not -path '*/node_modules/*' | head -n 1)
@@ -50,10 +47,9 @@ jobs:
           gradle-version: 9.3.1
           build-root-directory: ${{ env.PROJECT_DIR }}
 
-      # Kunci Google Maps dari GitHub Secret MAPS_API_KEY (kosong tetap build, peta saja yang tidak tampil)
       - name: Tulis .env
         working-directory: ${{ env.PROJECT_DIR }}
-        run: echo "MAPS_API_KEY=${{ secrets.MAPS_API_KEY }}" > .env
+        run: echo "MAPS_API_KEY=${{ secrets.MAPS_API_KEY || 'DEFAULT_API_KEY' }}" > .env
 
       - name: Build APK debug
         working-directory: ${{ env.PROJECT_DIR }}
@@ -69,11 +65,10 @@ jobs:
           name: NexendFly-debug
           path: NexendFly-debug.apk
 
-      # Setiap push ke main/master juga dipublikasikan sebagai Release
       - name: Publikasikan Release
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: Build #${{ github.run_number }}
-          files: NexendFly.apk
+          files: NexendFly-debug.apk
